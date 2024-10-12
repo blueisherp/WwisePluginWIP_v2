@@ -60,6 +60,22 @@ bool SidechainCompressorPluginGUI::WindowProc(AK::Wwise::Plugin::eDialog in_eDia
     return false;
 }
 
+void SidechainCompressorPluginGUI::NotifyMonitorData(AkTimeMs in_iTimeStamp, const AK::Wwise::Plugin::MonitorData* in_pMonitorDataArray, unsigned int in_uMonitorDataArraySize, bool in_bIsRealtime)
+{
+    if (m_hwndPropView != NULL &&
+        in_pMonitorDataArray != nullptr)
+    {
+        auto* serializedData = (std::string*) in_pMonitorDataArray->pData;
+
+        HWND DlgLabel1 = ::GetDlgItem(m_hwndPropView, IDC_DATA1);
+        ::SetWindowTextA(DlgLabel1, serializedData[0].c_str());
+
+        HWND DlgLabel2 = ::GetDlgItem(m_hwndPropView, IDC_DATA2);
+        ::SetWindowTextA(DlgLabel2, serializedData[1].c_str());
+
+    }
+}
+
 ADD_AUDIOPLUGIN_CLASS_TO_CONTAINER(
     SidechainCompressor,            // Name of the plug-in container for this shared library
     SidechainCompressorPluginGUI,   // Authoring plug-in class to add to the plug-in container

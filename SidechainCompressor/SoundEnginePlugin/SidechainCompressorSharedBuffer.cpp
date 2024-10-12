@@ -1,36 +1,18 @@
 #include "SidechainCompressorSharedBuffer.h"
 
-SidechainCompressorSharedBuffer::SidechainCompressorSharedBuffer(AK::IAkGlobalPluginContext* context
-    , std::map<AkUniqueID, AkReal32>& myPriorityMap)
+SidechainCompressorSharedBuffer::SidechainCompressorSharedBuffer(std::map<AkUniqueID, AkReal32>& myPriorityMap)
+    : PriorityMap(myPriorityMap)
 {
-    if (!context)
-    {
-        return;
-    }
-	Init(context);
-    
 }
 
 SidechainCompressorSharedBuffer::~SidechainCompressorSharedBuffer()
 {
+
 }
 
 
-void SidechainCompressorSharedBuffer::Init(AK::IAkGlobalPluginContext* context)
+void SidechainCompressorSharedBuffer::Init()
 {
-    std::lock_guard<std::mutex> lock(mtx);
-    if (!context)
-    {
-        // Error: context is null
-        return;
-    }
-
-    sharedBuffer = std::make_shared<AkAudioBuffer>();
-
-    // Initializing buffer variables
-    sharedBuffer->uValidFrames = context->GetMaxBufferLength();
-    sharedBuffer->eState = AK_DataReady;
-    sharedBuffer->ZeroPadToMaxFrames();
     
 }
 
@@ -41,29 +23,48 @@ void SidechainCompressorSharedBuffer::registerObjectID(AkUniqueID objectID)
 
 }
 
-void SidechainCompressorSharedBuffer::AddToSharedBuffer(AkAudioBuffer* sourceBuffer)
+void SidechainCompressorSharedBuffer::removeObjectID(AkUniqueID objectID)
 {
     std::lock_guard<std::mutex> lock(mtx);
 
-    for (AkUInt16 channel = 0; channel < sourceBuffer->NumChannels(); ++channel)
-    {
-        AkUInt16 uFrames = 0;
-        AkUInt16 minFrames = AkMin(sourceBuffer->uValidFrames, sharedBuffer->uValidFrames);
+    
+    std::vector<AkUniqueID>& v = objectIDList;
 
-        while (uFrames < minFrames)
-        {
-            sharedBuffer->GetChannel(channel)[uFrames] += sourceBuffer->GetChannel(channel)[uFrames];
-            uFrames++;
-        }
+    if (std::find(v.begin(), v.end(), objectID) != v.end())
+    {
+        v.erase(std::remove(v.begin(), v.end(), objectID));
+    }
+    
+}
+
+void SidechainCompressorSharedBuffer::AddToSharedBuffer(AkAudioBuffer* sourceBuffer)
+{
+    std::lock_guard<std::mutex> lock(mtx);
+    AkUInt32 numChannels = sharedBuffer.size();
+    AkUInt32 numFrames = sharedBuffer[0].size();
+
+    for (AkUInt32 channel = 0; channel < numChannels; channel++)
+    {
+        AkUInt32 frame = 0;
+        numFrames = AkMin(sharedBuffer[channel].size(), sourceBuffer->uValidFrames);
+        auto& thisChannel = sharedBuffer[channel];
+        while (frame < numFrames)
+            {
+                AkReal32 &pData = thisChannel[frame];
+
+                pData += sourceBuffer->GetChannel(channel)[frame];
+                frame++;
+            }
     }
 
+    
     numBuffersAdded++;
-
+   
     if (objectIDList.size() == numBuffersAdded)
     {
-        isSharedBufferReady.store(true, std::memory_order_release);
- 
+        isSharedBufferReady.store(true, std::memory_order_relaxed);
     }
+  
 }
 
 void SidechainCompressorSharedBuffer::AddToPriorityMap(AkUniqueID objectID, AkReal32 PriorityRank)
@@ -75,9 +76,8 @@ void SidechainCompressorSharedBuffer::AddToPriorityMap(AkUniqueID objectID, AkRe
     if (objectIDList.size() == PriorityMap.size())
     {
         isPriorityMapReady.store(true, std::memory_order_release);
-
-
     }
+
 }
 
 float SidechainCompressorSharedBuffer::getPercentile(AkUniqueID objectID)
@@ -116,90 +116,115 @@ float SidechainCompressorSharedBuffer::getPercentile(AkUniqueID objectID)
 void SidechainCompressorSharedBuffer::populateRMSTable(AkUInt32 frames10ms)
 {
     std::lock_guard<std::mutex> lock(mtx);
-    AkReal32 currentRMS = lastbuffer_mRMS;
-    AkUInt16 numChannels = sharedBuffer->NumChannels();
-    AkUInt32 numSamples = sharedBuffer->uValidFrames;
+    std::vector<AkReal32> currentRMS = { lastbuffer_mRMS[0], lastbuffer_mRMS[1] };
+    AkUInt16 numChannels = sharedBuffer.size();
+    AkUInt32 numFrames = 0;
 
-    if (RMSTable.empty() && sharedBuffer->HasData())
+    
+    if (RMSTable.empty() && !sharedBuffer.empty())
     {
-        RMSTable.resize(numChannels, std::vector<AkReal32>(numSamples));
-
-        for (AkUInt16 channel = 0; channel < sharedBuffer->NumChannels(); ++channel)
+        // Prepare rows/channels
+        RMSTable.resize(numChannels);
+        
+        for (AkUInt16 channel = 0; channel < numChannels; ++channel)
         {
-            AkUInt16 sample = 0;
+            AkUInt16 frame = 0;
+            numFrames = sharedBuffer[channel].size();
+            // Prepare columns/frames
+            RMSTable[channel].resize(numFrames);
 
-            while (sample < sharedBuffer->uValidFrames)
+            while (frame < numFrames)
             {
-                std::vector<AkReal32> RMSTableSample;
-                AkReal32 ampfactor = sharedBuffer->GetChannel(channel)[sample];
-                currentRMS = sqrtf(
+
+                AkReal32 currentSample = sharedBuffer[channel][frame];
+                currentRMS[channel] = sqrtf(
                     (
-                        (powf(currentRMS, 2) * ((frames10ms * numChannels) - 1)     // a fake sum of previous frames' squares
-                        ) + powf(ampfactor, 2)                                      // add square of new sample
+                        (powf(currentRMS[channel], 2) * ((frames10ms * numChannels) - 1)     // a fake sum of previous frames' squares
+                        ) + powf(currentSample, 2)                                  // add square of new sample
                     ) / (frames10ms * numChannels)                                  // divide by frames to get new average of squares
                 );                                                                  // square root everything
 
-                RMSTable[channel][sample] = currentRMS;
-                sample++;
+                RMSTable[channel][frame] = currentRMS[channel];
+                frame++;
             }
-
         }
+        
+    }
+    
+    // update lastbuffer_mRMS with above calculations
+    for (AkUInt16 i = 0; i < 2; i++)
+    {
+        lastbuffer_mRMS[i] = currentRMS[i];
     }
 
     isRMSTableReady.store(true, std::memory_order_release);
-    lastbuffer_mRMS = currentRMS;
+
 }
 
-
-
-void SidechainCompressorSharedBuffer::resetSharedBuffer()
+void SidechainCompressorSharedBuffer::resetSharedBuffer(AkAudioBuffer* sourceBuffer)
 {
     std::lock_guard<std::mutex> lock(mtx);
-    if (sharedBuffer->HasData())
-    {
-        sharedBuffer->ClearData();
-        numBuffersAdded = 0;
-        sharedBuffer->ZeroPadToMaxFrames();
-        isSharedBufferReady.store(false, std::memory_order_release);
-    }
+
+    sharedBuffer.clear();
+    numBuffersAdded = 0;
+    isSharedBufferReady.store(false, std::memory_order_relaxed);
+
+    // Resize rows to match sourceBuffer
+    sharedBuffer.resize(sourceBuffer->NumChannels(), std::vector<AkReal32>(sourceBuffer->uValidFrames));
 }
 
 void SidechainCompressorSharedBuffer::resetPriorityMap()
 {
     std::lock_guard<std::mutex> lock(mtx);
-    if (!PriorityMap.empty())
-    {
-        PriorityMap.clear();
-        isPriorityMapReady.store(false, std::memory_order_release);
-    }
 
+    PriorityMap.clear();
+    isPriorityMapReady.store(false, std::memory_order_release);
 }
 
 void SidechainCompressorSharedBuffer::resetRMSTable()
 {
     std::lock_guard<std::mutex> lock(mtx);
-    if (!RMSTable.empty())
-    {
-        RMSTable.clear();
-        isRMSTableReady.store(false, std::memory_order_release);
-    }
+
+    RMSTable.clear();
+    isRMSTableReady.store(false, std::memory_order_release);
+
 }
 
 
-void SidechainCompressorSharedBuffer::waitForSharedBufferAndPriorityMap()
+void SidechainCompressorSharedBuffer::waitForSharedBufferAndPriorityMap() 
 {
+    // pseudo-spinlock
+
+    using namespace std::chrono;
+    auto startTime = steady_clock::now();
+    int timeoutInMilliseconds = 50; // 100ms timeout
+
     while (!isSharedBufferReady || !isPriorityMapReady)
     {
-        // pseudo-spinlock
+        if (duration_cast<milliseconds>(steady_clock::now() - startTime).count() > timeoutInMilliseconds)
+        {
+            break; // Timeout exceeded, break the loop
+        }
+
     }
+
 }
 
 
-void SidechainCompressorSharedBuffer::waitForRMSTable()
+void SidechainCompressorSharedBuffer::waitForRMSTable() 
 {
+    // pseudo-spinlock
+
+    using namespace std::chrono;
+    auto startTime = steady_clock::now();
+    int timeoutInMilliseconds = 50; // 150ms timeout
+
     while (!isRMSTableReady)
     {
-        // pseudo-spinlock
+        if (duration_cast<milliseconds>(steady_clock::now() - startTime).count() > timeoutInMilliseconds)
+        {
+            break; // Timeout exceeded, break the loop
+        }
     }
 }
 

@@ -28,10 +28,15 @@ the specific language governing permissions and limitations under the License.
 
 #include "../SidechainCompressorPlugin.h"
 #include "../resource.h"
+#include <string>
+#include <iostream>
+#include <sstream>
+#include <iomanip>
 
 class SidechainCompressorPluginGUI final
 	: public AK::Wwise::Plugin::PluginMFCWindows<>
 	, public AK::Wwise::Plugin::GUIWindows
+    , public AK::Wwise::Plugin::Notifications::Monitor
 {
 public:
 	SidechainCompressorPluginGUI();
@@ -52,6 +57,12 @@ public:
         LPARAM in_lParam,
         LRESULT& out_lResult
     ) override;
+
+    void NotifyMonitorData(
+        AkTimeMs in_iTimeStamp,
+        const AK::Wwise::Plugin::MonitorData* in_pMonitorDataArray,
+        unsigned int in_uMonitorDataArraySize,
+        bool in_bIsRealtime) override;
 
 private:
     HWND m_hwndPropView = nullptr;

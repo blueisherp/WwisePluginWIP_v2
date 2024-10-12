@@ -31,6 +31,9 @@ the specific language governing permissions and limitations under the License.
 #include "SidechainCompressorSharedBuffer.h"
 #include <cmath>
 #include <string>
+#include <iostream>
+#include <sstream>
+#include <iomanip>
 
 /// See https://www.audiokinetic.com/library/edge/?source=SDK&id=soundengine__plugins__effects.html
 /// for the documentation about effect plug-ins
@@ -64,17 +67,20 @@ public:
     /// Return AK_DataReady or AK_NoMoreData, depending if there would be audio output or not at that point.
     AKRESULT TimeSkip(AkUInt32 &io_uFrames) override;
 
-    std::shared_ptr<SidechainCompressorSharedBuffer> g_sharedBuffer;
+    
+    //std::shared_ptr<SidechainCompressorSharedBuffer> g_sharedBuffer;
 
 private:
     SidechainCompressorFXParams* m_pParams;
     AK::IAkPluginMemAlloc* m_pAllocator;
     AK::IAkEffectPluginContext* m_pContext;
+    std::shared_ptr<SidechainCompressorSharedBuffer> m_sharedBuffer;
 
     std::string errorMsg = "Default Error Message";
     AkUInt32 SampleRate = 0;
-    AkUniqueID objectID = 0;
-    std::map<AkUniqueID, AkReal32> priorityMapTemp;
+    AkUniqueID objectID;
+    
+    AkReal32 avgRMS = 0.0f;
 };
 
 #endif // SidechainCompressorFX_H

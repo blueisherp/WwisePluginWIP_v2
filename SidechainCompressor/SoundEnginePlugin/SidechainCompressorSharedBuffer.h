@@ -5,7 +5,11 @@
 #include <iostream>
 #include <map>
 #include <future>
-#include <condition_variable>
+#include <chrono>
+#include <atomic>
+#include <string>
+#include <sstream>
+#include <iomanip>
 #include <AK/SoundEngine/Common/AkCommonDefs.h>
 #include <AK/SoundEngine/Common/IAkPlugin.h>
 
@@ -13,20 +17,25 @@
 class SidechainCompressorSharedBuffer
 {
 public:
-    SidechainCompressorSharedBuffer(AK::IAkGlobalPluginContext* context, std::map<AkUniqueID, AkReal32>& myPriorityMap);
+    SidechainCompressorSharedBuffer(std::map<AkUniqueID, AkReal32>& myPriorityMap);
 	~SidechainCompressorSharedBuffer();
 
-    void Init(AK::IAkGlobalPluginContext* context);
+    void Init();
 
-    std::shared_ptr<AkAudioBuffer> sharedBuffer;
+    std::vector<std::vector<AkReal32>> sharedBuffer; // 2-d array of Channels (outer vector) and Frames (inner vector)
     AkUInt16 numBuffersAdded = 0;
-    std::map<AkUniqueID, AkReal32> PriorityMap;
+    std::map<AkUniqueID, AkReal32> PriorityMap = {};
     std::vector<AkUniqueID> objectIDList;
     std::vector<std::vector<AkReal32>> RMSTable;        //This is a 2d-array. The outer vector (rows) is numChannels.  The inner vector (columns) is numSamples.
+    std::atomic<bool> isPriorityMapReady{ false };
+    std::atomic<bool> isRMSTableReady{ false };
+    std::atomic<bool> isSharedBufferReady{ false };
+    std::string errorMsg = "Default Error Message";
+    AkReal32 lastbuffer_mRMS[2] = { 0.0f, 0.0f };       // The moving RMS of the last L and R samples of the previous buffer
 
     void registerObjectID(AkUniqueID objectID);
 
-    // TODO: unregisterObjectID for when plugin destructs
+    void removeObjectID(AkUniqueID objectID);
 
     void AddToSharedBuffer(AkAudioBuffer* sourceBuffer);
 
@@ -37,21 +46,26 @@ public:
     void populateRMSTable(AkUInt32 frames10ms);         // Intended to be used per buffer. frames10ms is 10 ms worth of frames. RMS is in linear
 
 
-    // Replace with spin locks or atomic counters
-    void waitForSharedBufferAndPriorityMap();
-    void waitForRMSTable();
-    // TODO: resync all threads
+    void waitForSharedBufferAndPriorityMap(); 
+    void waitForRMSTable(); 
 
     void resetRMSTable();
-    void resetSharedBuffer();
+    void resetSharedBuffer(AkAudioBuffer* sourceBuffer);
     void resetPriorityMap();
 
 private:
     
     std::mutex mtx; 
-    AkReal32 lastbuffer_mRMS = 0.0f;                           // The moving RMS of the last sample of the previous buffer
-    std::atomic<bool> isPriorityMapReady{ false };
-    std::atomic<bool> isSharedBufferReady{ false };
-    std::atomic<bool> isRMSTableReady{ false };
-    
+  
 };
+
+class GlobalManager
+{
+public:
+    static std::shared_ptr<SidechainCompressorSharedBuffer>& getGlobalBuffer(std::map<AkUniqueID, AkReal32>& myPriorityMap)
+    {
+        static std::shared_ptr<SidechainCompressorSharedBuffer> g_ptr = std::make_shared<SidechainCompressorSharedBuffer>(myPriorityMap);
+        return g_ptr;
+    }
+};
+
