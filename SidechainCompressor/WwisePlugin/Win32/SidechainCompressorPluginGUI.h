@@ -33,6 +33,7 @@ the specific language governing permissions and limitations under the License.
 #include <sstream>
 #include <iomanip>
 
+
 class SidechainCompressorPluginGUI final
 	: public AK::Wwise::Plugin::PluginMFCWindows<>
 	, public AK::Wwise::Plugin::GUIWindows

@@ -29,11 +29,17 @@ the specific language governing permissions and limitations under the License.
 
 #include "SidechainCompressorFXParams.h"
 #include "SidechainCompressorSharedBuffer.h"
+#include <AK/SoundEngine/Common/AkSoundEngine.h>
+#include <AK/SoundEngine/Common/AkCallback.h>
+#include <AK/SoundEngine/Common/AkModule.h>
+#include <AK/SoundEngine/Common/AkTypes.h>
+#include <AK/SoundEngine/Common/AkCommonDefs.h>
 #include <cmath>
 #include <string>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <chrono>
 
 /// See https://www.audiokinetic.com/library/edge/?source=SDK&id=soundengine__plugins__effects.html
 /// for the documentation about effect plug-ins
@@ -67,20 +73,32 @@ public:
     /// Return AK_DataReady or AK_NoMoreData, depending if there would be audio output or not at that point.
     AKRESULT TimeSkip(AkUInt32 &io_uFrames) override;
 
-    
-    //std::shared_ptr<SidechainCompressorSharedBuffer> g_sharedBuffer;
+    static void AKSOUNDENGINE_CALL MyGlobalCallbackFunction(
+        AK::IAkGlobalPluginContext* in_pContext,
+        AkGlobalCallbackLocation in_eLocation,
+        void* in_pCookie);
 
 private:
     SidechainCompressorFXParams* m_pParams;
     AK::IAkPluginMemAlloc* m_pAllocator;
     AK::IAkEffectPluginContext* m_pContext;
-    std::shared_ptr<SidechainCompressorSharedBuffer> m_sharedBuffer;
+    std::map<AkUniqueID, AkReal32> mapFormat;
+    std::shared_ptr<SidechainCompressorSharedBuffer> m_sharedBuffer = GlobalManager::getGlobalBuffer(mapFormat);
+    AkAudioBuffer* sourceBuffer;
+
 
     std::string errorMsg = "Default Error Message";
+    std::string errorMsg2 = "Default Error Message 2";
     AkUInt32 SampleRate = 0;
+    AkReal32 priorityRank = 0.0f;
     AkUniqueID objectID;
-    
-    AkReal32 avgRMS = 0.0f;
+
+    void doCalculations(AkAudioBuffer* sourceBuffer, AkGlobalCallbackLocation in_pCallback);
+    void resetCalcs(AkGlobalCallbackLocation in_pCallback);
+
+    void registerCallbacks();
+
+
 };
 
 #endif // SidechainCompressorFX_H

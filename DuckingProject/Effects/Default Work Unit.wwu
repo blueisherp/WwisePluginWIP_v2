@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WwiseDocument Type="WorkUnit" ID="{79AFDD9B-6C4C-4528-8672-762F63B7B1D9}" SchemaVersion="119">
+	<Effects>
+		<WorkUnit Name="Default Work Unit" ID="{79AFDD9B-6C4C-4528-8672-762F63B7B1D9}" PersistMode="Standalone">
+			<ChildrenList>
+				<Effect Name="New_AutoCompressor" ID="{CC4C9EA5-3C62-4B90-A1F0-D2F1EF322FDE}" PluginName="AutoCompressor" CompanyID="64" PluginID="9534" PluginType="3">
+					<PropertyList>
+						<Property Name="Ratio" Type="Real32" Value="8.2"/>
+						<Property Name="Threshold" Type="Real32" Value="-5"/>
+					</PropertyList>
+				</Effect>
+			</ChildrenList>
+		</WorkUnit>
+	</Effects>
+</WwiseDocument>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WwiseDocument Type="WorkUnit" ID="{3A073DF1-E84A-4D58-82F9-013CEAF8A40C}" SchemaVersion="119">
+	<Events>
+		<WorkUnit Name="Default Work Unit" ID="{3A073DF1-E84A-4D58-82F9-013CEAF8A40C}" PersistMode="Standalone">
+			<ChildrenList>
+				<Event Name="Play_Music" ID="{D51CB17F-68DE-4D8B-976F-331B5D2930DF}">
+					<ChildrenList>
+						<Action Name="" ID="{FD191F20-5748-4DC0-BE81-A0A108D4050B}" ShortID="747539840">
+							<ReferenceList>
+								<Reference Name="Target">
+									<ObjectRef Name="Music Loop" ID="{62B66812-7CD4-44A5-862C-C490A8AB7B22}" WorkUnitID="{83A67D86-F899-4BD8-B994-E16F3A8D21E9}"/>
+								</Reference>
+							</ReferenceList>
+						</Action>
+					</ChildrenList>
+				</Event>
+				<Event Name="Play_Quack" ID="{0E3C33E4-D2C7-47DA-A059-9139B73E64F0}">
+					<ChildrenList>
+						<Action Name="" ID="{1D6C72EC-9EA6-41D5-9E2A-E2DC0536D4F5}" ShortID="640320619">
+							<ReferenceList>
+								<Reference Name="Target">
+									<ObjectRef Name="Quack" ID="{21F59522-867B-4E35-A262-D3FD5FE6D9A1}" WorkUnitID="{83A67D86-F899-4BD8-B994-E16F3A8D21E9}"/>
+								</Reference>
+							</ReferenceList>
+						</Action>
+					</ChildrenList>
+				</Event>
+				<Event Name="Play_Sin" ID="{2794B2AC-8855-4AC1-A5D8-30B9E8A43F08}">
+					<ChildrenList>
+						<Action Name="" ID="{00614A20-2945-4401-9DB9-0BCB836D635D}" ShortID="577122580">
+							<ReferenceList>
+								<Reference Name="Target">
+									<ObjectRef Name="New Sine" ID="{E8A7DDA6-D9E8-497D-ACA9-E02F352B6B31}" WorkUnitID="{83A67D86-F899-4BD8-B994-E16F3A8D21E9}"/>
+								</Reference>
+							</ReferenceList>
+						</Action>
+					</ChildrenList>
+				</Event>
+				<Event Name="Play_Tone" ID="{0B79E64B-69A6-491D-AE81-D9424893017F}">
+					<ChildrenList>
+						<Action Name="" ID="{C7241DFD-6FD6-4C3C-984B-DA3723C8446C}" ShortID="268009299">
+							<ReferenceList>
+								<Reference Name="Target">
+									<ObjectRef Name="New Tone Generator" ID="{329616FD-F157-4D88-9AD5-6C664E07643F}" WorkUnitID="{83A67D86-F899-4BD8-B994-E16F3A8D21E9}"/>
+								</Reference>
+							</ReferenceList>
+						</Action>
+					</ChildrenList>
+				</Event>
+				<Event Name="Play_MusicTone" ID="{A0CE3408-BA18-4096-BE3A-E52BC9E39A63}">
+					<ChildrenList>
+						<Action Name="" ID="{602BEF4F-94E0-495D-877B-157A13F69BC5}" ShortID="276192598">
+							<ReferenceList>
+								<Reference Name="Target">
+									<ObjectRef Name="New Tone Generator" ID="{6CE516D4-A62C-4379-9C8C-906716D2C364}" WorkUnitID="{83A67D86-F899-4BD8-B994-E16F3A8D21E9}"/>
+								</Reference>
+							</ReferenceList>
+						</Action>
+					</ChildrenList>
+				</Event>
+			</ChildrenList>
+		</WorkUnit>
+	</Events>
+</WwiseDocument>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WwiseDocument Type="WorkUnit" ID="{6CC5D403-CAA3-4404-BCB4-58FE6540BFEB}" SchemaVersion="119">
+	<Busses>
+		<WorkUnit Name="Default Work Unit" ID="{6CC5D403-CAA3-4404-BCB4-58FE6540BFEB}" PersistMode="Standalone">
+			<ChildrenList>
+				<Bus Name="Master Audio Bus" ID="{1514A4D8-1DA6-412A-A17E-75CA0C2149F3}">
+					<ReferenceList>
+						<Reference Name="AudioDevice" PluginName="System" CompanyID="0" PluginID="174" PluginType="7">
+							<ObjectRef Name="System" ID="{70479127-1CB7-44E6-B95F-26A1E4ADD819}" WorkUnitID="{1A8E697D-4A35-4183-8D0E-46850B1912AF}"/>
+						</Reference>
+					</ReferenceList>
+					<ChildrenList>
+						<Bus Name="Music Bus" ID="{2F89702D-1C49-40AA-A295-1381659C9441}">
+							<PropertyList>
+								<Property Name="BusVolume" Type="Real64">
+									<ValueList>
+										<Value>-3</Value>
+									</ValueList>
+								</Property>
+							</PropertyList>
+							<ObjectLists>
+								<ObjectList Name="Effects">
+									<Reference>
+										<Local>
+											<EffectSlot Name="" ID="{69724334-106D-4323-933E-AAAB9ED9FBBB}" ShortID="123972108">
+												<ReferenceList>
+													<Reference Name="Effect">
+														<Custom>
+															<Effect Name="SidechainCompressor (Custom)" ID="{2319FB55-97FA-43D9-9540-2317B6E75D0C}" ShortID="98804274" PluginName="SidechainCompressor" CompanyID="64" PluginID="25358" PluginType="3">
+																<PropertyList>
+																	<Property Name="MaxRatio" Type="Real32" Value="11.2"/>
+																	<Property Name="PriorityRank" Type="Real32" Value="2"/>
+																	<Property Name="Threshold" Type="Real32" Value="-21"/>
+																</PropertyList>
+															</Effect>
+														</Custom>
+													</Reference>
+												</ReferenceList>
+											</EffectSlot>
+										</Local>
+									</Reference>
+								</ObjectList>
+							</ObjectLists>
+						</Bus>
+						<Bus Name="SFX Bus" ID="{5AB1DD87-622A-42F3-B983-4DB7D3493E18}">
+							<PropertyList>
+								<Property Name="RecoveryTime" Type="Real64" Value="0"/>
+								<Property Name="SpeakerPanning" Type="int16" Value="2"/>
+							</PropertyList>
+							<PositioningInfo>
+								<Panner Name="" ID="{48D86C44-0F50-489F-A2CD-5AD2B5B3B014}">
+									<PropertyList>
+										<Property Name="PanX" Type="Real64" Value="-84.4594594594595"/>
+										<Property Name="PanY" Type="Real64" Value="12.6811594202898"/>
+									</PropertyList>
+								</Panner>
+							</PositioningInfo>
+							<ObjectLists>
+								<ObjectList Name="Effects">
+									<Reference>
+										<Local>
+											<EffectSlot Name="" ID="{B67FDD30-1563-4A97-957C-4116C1E36011}" ShortID="347563171">
+												<ReferenceList>
+													<Reference Name="Effect">
+														<Custom>
+															<Effect Name="SidechainCompressor (Custom)" ID="{74342B99-A486-49AE-808D-CA537E392A21}" ShortID="913442784" PluginName="SidechainCompressor" CompanyID="64" PluginID="25358" PluginType="3">
+																<PropertyList>
+																	<Property Name="MaxRatio" Type="Real32" Value="4"/>
+																	<Property Name="PriorityRank" Type="Real32" Value="3"/>
+																	<Property Name="Threshold" Type="Real32" Value="-17.7"/>
+																</PropertyList>
+															</Effect>
+														</Custom>
+													</Reference>
+												</ReferenceList>
+											</EffectSlot>
+										</Local>
+									</Reference>
+								</ObjectList>
+							</ObjectLists>
+						</Bus>
+					</ChildrenList>
+				</Bus>
+			</ChildrenList>
+		</WorkUnit>
+	</Busses>
+</WwiseDocument>

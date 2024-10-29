@@ -71,7 +71,14 @@ void SidechainCompressorSharedBuffer::AddToPriorityMap(AkUniqueID objectID, AkRe
 {
     std::lock_guard<std::mutex> lock(mtx);
 
-    PriorityMap.insert_or_assign(objectID,PriorityRank);
+    if (PriorityMap.find(objectID) == PriorityMap.end())
+    {
+        PriorityMap.emplace(objectID, PriorityRank);
+    }
+    else
+    {
+        PriorityMap[objectID] = PriorityRank;
+    }
 
     if (objectIDList.size() == PriorityMap.size())
     {
@@ -80,12 +87,47 @@ void SidechainCompressorSharedBuffer::AddToPriorityMap(AkUniqueID objectID, AkRe
 
 }
 
+void SidechainCompressorSharedBuffer::addToPriorityList(AkUniqueID objectID, AkReal32 PriorityRank)
+{
+    std::lock_guard<std::mutex> lock(mtx);
+    using pairtype = std::pair<AkUniqueID, AkReal32>;
+    std::vector<pairtype>& v = PriorityList;
+
+    auto myPriority = std::find_if(v.begin(), v.end(),
+        [objectID](const auto& pair) {return pair.first == objectID; });
+
+    if (myPriority == v.end()) // if this object is NOT already listed
+    {
+        v.push_back(std::make_pair(objectID, PriorityRank));
+    }
+    else if (myPriority->second != PriorityRank)
+    {
+        v.erase(myPriority);
+        v.push_back(std::make_pair(objectID, PriorityRank));
+    }
+
+    if (objectIDList.size() == PriorityList.size())
+    {
+        isPriorityListReady.store(true, std::memory_order_release);
+    }
+    
+}
+
+void SidechainCompressorSharedBuffer::removeFromPriorityMap(AkUniqueID objectID)
+{
+    std::lock_guard<std::mutex> lock(mtx);
+    using pairtype = std::pair<AkUniqueID, AkReal32>;
+    std::map<AkUniqueID, AkReal32>& m = PriorityMap;
+
+    if (m.find(objectID) != m.end())
+    {
+        m.erase(objectID);
+    }
+}
+
 float SidechainCompressorSharedBuffer::getPercentile(AkUniqueID objectID)
 {
-    if (objectIDList.size() != PriorityMap.size())
-    {
-        return 0.0f;
-    }
+    std::shared_lock<std::shared_mutex> lock(s_mtx);
 
     using pairtype = std::pair<AkUniqueID, AkReal32>;
 
@@ -105,12 +147,50 @@ float SidechainCompressorSharedBuffer::getPercentile(AkUniqueID objectID)
     // handles error and avoids dividing by zero
      if (PriorityMap.find(objectID) == PriorityMap.end() || minValue == maxValue)
      {
-         return 0.0f;
+         return 0.5f;
      }
          
      // Gives Percentile
      return (PriorityMap[objectID] - minValue) / (maxValue - minValue);
 
+}
+
+float SidechainCompressorSharedBuffer::getPercentile2(AkUniqueID objectID)
+{
+    std::shared_lock<std::shared_mutex> lock(s_mtx);
+    if (objectIDList.size() != PriorityMap.size())
+    {
+        return 0.5f;
+    }
+
+    using pairtype = std::pair<AkUniqueID, AkReal32>;
+
+    // Find Minimum
+    pairtype min = *min_element(PriorityList.cbegin(), PriorityList.cend(),
+        [](const pairtype& left, const pairtype& right)
+        { return left.second < right.second; });
+    AkReal32 minValue = min.second;
+
+    // Find Maximum
+    pairtype max = *max_element(PriorityList.cbegin(), PriorityList.cend(),
+        [](const pairtype& left, const pairtype& right)
+        { return left.second < right.second; });
+    AkReal32 maxValue = max.second;
+
+    // Gives Percentile
+    auto myPriority = std::find_if(PriorityList.begin(), PriorityList.end(),
+        [objectID] (const auto& pair) {return pair.first == objectID; });
+
+    if (myPriority != PriorityList.end() && minValue != maxValue)
+    {
+        return (myPriority->second - minValue) / (maxValue - minValue);
+    }
+    else // handles error and avoids dividing by zero
+    {
+        return 0.5f;
+    }
+
+    
 }
 
 void SidechainCompressorSharedBuffer::populateRMSTable(AkUInt32 frames10ms)
@@ -157,9 +237,15 @@ void SidechainCompressorSharedBuffer::populateRMSTable(AkUInt32 frames10ms)
         lastbuffer_mRMS[i] = currentRMS[i];
     }
 
-    isRMSTableReady.store(true, std::memory_order_release);
+    if (!RMSTable.empty())
+    {
+        isRMSTableReady.store(true, std::memory_order_release);
+    }
+    
 
 }
+
+
 
 void SidechainCompressorSharedBuffer::resetSharedBuffer(AkAudioBuffer* sourceBuffer)
 {
@@ -178,7 +264,20 @@ void SidechainCompressorSharedBuffer::resetPriorityMap()
     std::lock_guard<std::mutex> lock(mtx);
 
     PriorityMap.clear();
+    PriorityList.clear();
     isPriorityMapReady.store(false, std::memory_order_release);
+}
+
+void SidechainCompressorSharedBuffer::globalCallback(AkGlobalCallbackLocation in_eLocation, void* in_pCallbackInfo, void* in_pUserData, AkAudioBuffer* sourceBuffer, AkUniqueID objectID, AkReal32 PriorityRank)
+{
+    if (in_eLocation == AkGlobalCallbackLocation_BeginRender)
+    {
+        for (auto& plugin : objectIDList)
+        {
+            AddToSharedBuffer(sourceBuffer);
+            AddToPriorityMap(objectID, PriorityRank);
+        }
+    }
 }
 
 void SidechainCompressorSharedBuffer::resetRMSTable()
@@ -191,15 +290,14 @@ void SidechainCompressorSharedBuffer::resetRMSTable()
 }
 
 
-void SidechainCompressorSharedBuffer::waitForSharedBufferAndPriorityMap() 
+void SidechainCompressorSharedBuffer::waitForSharedBuffer()
 {
-    // pseudo-spinlock
-
+    
     using namespace std::chrono;
     auto startTime = steady_clock::now();
-    int timeoutInMilliseconds = 50; // 100ms timeout
+    int timeoutInMilliseconds = 50; // timeout in miliseconds
 
-    while (!isSharedBufferReady || !isPriorityMapReady)
+    while (!isSharedBufferReady)
     {
         if (duration_cast<milliseconds>(steady_clock::now() - startTime).count() > timeoutInMilliseconds)
         {
@@ -217,7 +315,7 @@ void SidechainCompressorSharedBuffer::waitForRMSTable()
 
     using namespace std::chrono;
     auto startTime = steady_clock::now();
-    int timeoutInMilliseconds = 50; // 150ms timeout
+    int timeoutInMilliseconds = 50; // timeout in miliseconds
 
     while (!isRMSTableReady)
     {
@@ -227,7 +325,5 @@ void SidechainCompressorSharedBuffer::waitForRMSTable()
         }
     }
 }
-
-
 
 

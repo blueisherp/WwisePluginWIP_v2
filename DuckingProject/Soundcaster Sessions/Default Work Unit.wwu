@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WwiseDocument Type="WorkUnit" ID="{4AC00366-5627-497D-9EC0-434BF8806DED}" SchemaVersion="119">
+	<SoundcasterSessions>
+		<WorkUnit Name="Default Work Unit" ID="{4AC00366-5627-497D-9EC0-434BF8806DED}" PersistMode="Standalone">
+			<ChildrenList>
+				<SoundcasterSession Name="New Soundcaster Session" ID="{CCDB634B-2867-4EAB-9F99-04CE0674AEBE}">
+					<ModuleList>
+						<Module>
+							<ObjectRef Name="Play_Music" ID="{D51CB17F-68DE-4D8B-976F-331B5D2930DF}" WorkUnitID="{3A073DF1-E84A-4D58-82F9-013CEAF8A40C}"/>
+							<Position X="0" Y="0"/>
+						</Module>
+						<Module>
+							<ObjectRef Name="Play_MusicTone" ID="{A0CE3408-BA18-4096-BE3A-E52BC9E39A63}" WorkUnitID="{3A073DF1-E84A-4D58-82F9-013CEAF8A40C}"/>
+							<Position X="0" Y="1"/>
+						</Module>
+						<Module>
+							<ObjectRef Name="Play_Sin" ID="{2794B2AC-8855-4AC1-A5D8-30B9E8A43F08}" WorkUnitID="{3A073DF1-E84A-4D58-82F9-013CEAF8A40C}"/>
+							<Position X="1" Y="0"/>
+						</Module>
+						<Module>
+							<ObjectRef Name="Play_Quack" ID="{0E3C33E4-D2C7-47DA-A059-9139B73E64F0}" WorkUnitID="{3A073DF1-E84A-4D58-82F9-013CEAF8A40C}"/>
+							<Position X="2" Y="0"/>
+						</Module>
+						<Module>
+							<ObjectRef Name="Play_Tone" ID="{0B79E64B-69A6-491D-AE81-D9424893017F}" WorkUnitID="{3A073DF1-E84A-4D58-82F9-013CEAF8A40C}"/>
+							<Position X="3" Y="0"/>
+						</Module>
+					</ModuleList>
+					<RTPCValueList ShowAll="true"/>
+					<CurrentStateList ShowAll="true"/>
+					<CurrentSwitchList ShowAll="true">
+						<CurrentSwitchRef Name="New_Switch" ID="{B488098E-3409-452E-B893-0845E62DD0CE}"/>
+					</CurrentSwitchList>
+				</SoundcasterSession>
+			</ChildrenList>
+		</WorkUnit>
+	</SoundcasterSessions>
+</WwiseDocument>

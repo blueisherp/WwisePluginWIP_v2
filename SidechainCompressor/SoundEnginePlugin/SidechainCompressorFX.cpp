@@ -50,7 +50,15 @@ SidechainCompressorFX::SidechainCompressorFX()
 
 SidechainCompressorFX::~SidechainCompressorFX()
 {
-    
+    /**/
+    auto& v = m_sharedBuffer->objectIDList;
+    if (std::find(v.begin(), v.end(), objectID) != v.end())
+    {
+        m_sharedBuffer->removeObjectID(objectID);
+    }
+
+    m_sharedBuffer->removeFromPriorityMap(objectID);
+    /**/
 }
 
 AKRESULT SidechainCompressorFX::Init(AK::IAkPluginMemAlloc* in_pAllocator, AK::IAkEffectPluginContext* in_pContext, AK::IAkPluginParam* in_pParams, AkAudioFormat& in_rFormat)
@@ -60,31 +68,18 @@ AKRESULT SidechainCompressorFX::Init(AK::IAkPluginMemAlloc* in_pAllocator, AK::I
     m_pAllocator = in_pAllocator;
     m_pContext = in_pContext;
     SampleRate = in_rFormat.uSampleRate;
+    priorityRank = m_pParams->RTPC.fPriorityRank;
 
-
-    // Create global shared buffer (deprecated)
-    /*
-    if (!g_sharedBuffer)
-    {
-        
-        g_sharedBuffer = std::make_shared<SidechainCompressorSharedBuffer>(mapFormat);
-    }
-    */
-
-    // Create personal reference to global shared buffer
-    std::map<AkUniqueID, AkReal32> mapFormat;
-    m_sharedBuffer = GlobalManager::getGlobalBuffer(mapFormat);
- 
-    
     
     // Register object to sharedBuffer's list of objects
     if (in_pContext != nullptr)
     {
         objectID = in_pContext->GetAudioNodeID();
     }
-
     m_sharedBuffer->registerObjectID(objectID);
+    m_sharedBuffer->AddToPriorityMap(objectID, priorityRank);
     
+
     return AK_Success;
 }
 
@@ -93,7 +88,13 @@ AKRESULT SidechainCompressorFX::Init(AK::IAkPluginMemAlloc* in_pAllocator, AK::I
 AKRESULT SidechainCompressorFX::Term(AK::IAkPluginMemAlloc* in_pAllocator)
 {
     // Unregister from list of objects
-    m_sharedBuffer->removeObjectID(objectID);
+    auto& v = m_sharedBuffer->objectIDList;
+    if (std::find(v.begin(), v.end(), objectID) != v.end())
+    {
+        m_sharedBuffer->removeObjectID(objectID);
+    }
+
+    m_sharedBuffer->removeFromPriorityMap(objectID);
 
     AK_PLUGIN_DELETE(in_pAllocator, this);
     return AK_Success;
@@ -114,6 +115,7 @@ AKRESULT SidechainCompressorFX::GetPluginInfo(AkPluginInfo& out_rPluginInfo)
     return AK_Success;
 }
 
+
 void SidechainCompressorFX::Execute(AkAudioBuffer* in_pBuffer, AkUInt32 in_ulnOffset, AkAudioBuffer* out_pBuffer)
 {
     const AkUInt32 uNumChannels = in_pBuffer->NumChannels();
@@ -121,61 +123,68 @@ void SidechainCompressorFX::Execute(AkAudioBuffer* in_pBuffer, AkUInt32 in_ulnOf
     AkUInt16 uFramesConsumed;
     AkUInt16 uFramesProduced;
 
-    AkReal32 priorityRank = m_pParams->RTPC.fPriorityRank;
-    const AkReal32 frames10ms = SampleRate / 100;
+    const AkUInt32 frames10ms = SampleRate / 100;
     AkReal32 threshold = m_pParams->RTPC.fThreshold;
 
-    // SharedBuffer, PriorityMap, PercentileMap, and RMSTable need to be reset
-    if (m_sharedBuffer->isSharedBufferReady || m_sharedBuffer->sharedBuffer.empty())
+
+    // Reset Atomic counters
+    if (m_sharedBuffer->numBuffersProcessed == m_sharedBuffer->objectIDList.size())
+    {
+        m_sharedBuffer->numBuffersProcessed.store(0, std::memory_order_relaxed);
+        m_sharedBuffer->numBuffersCalculated.store(0, std::memory_order_relaxed);
+    }
+
+    // AkGlobalCallbackLocation_BeginRender;
+
+
+    // SharedBuffer and RMSTable need to be reset
+    if (m_sharedBuffer->isSharedBufferReady || 
+        m_sharedBuffer->sharedBuffer.empty() || 
+        m_sharedBuffer->numBuffersAdded == m_sharedBuffer->numBuffersProcessed)
     {
         m_sharedBuffer->resetSharedBuffer(in_pBuffer);
     }
     
-    if (m_sharedBuffer->isPriorityMapReady || m_sharedBuffer->PriorityMap.empty())
-    {
-        m_sharedBuffer->resetPriorityMap();
-    }
     
-    if (m_sharedBuffer->isRMSTableReady || m_sharedBuffer->RMSTable.empty())
+    if (m_sharedBuffer->isRMSTableReady ||
+        m_sharedBuffer->numBuffersProcessed == m_sharedBuffer->objectIDList.size() || 
+        m_sharedBuffer->RMSTable.empty())
     {
         m_sharedBuffer->resetRMSTable();
     }
     
-
-
     // Add buffer to global shared buffer
     m_sharedBuffer->AddToSharedBuffer(in_pBuffer);
     
-    // Add object ID and Priority Rank to PriorityMap
+    // Add/update object ID and Priority Rank to PriorityMap
     m_sharedBuffer->AddToPriorityMap(objectID, priorityRank);
 
-    
-    // Wait for SharedBuffer and Priority Map to be done
-    m_sharedBuffer->waitForSharedBufferAndPriorityMap();
+    // Buffer finished Calculating
+    m_sharedBuffer->numBuffersCalculated.fetch_add(1, std::memory_order_relaxed);
+
+
 
     // Populate RMStable
-
-    m_sharedBuffer->populateRMSTable(frames10ms);
+    if (m_sharedBuffer->RMSTable.empty())
+    {
+        m_sharedBuffer->populateRMSTable(frames10ms);
+    }
 
     // Get Percentile from Priority Map
 
     AkReal32 Percentile = m_sharedBuffer->getPercentile(objectID);
-
-    errorMsg = m_sharedBuffer->errorMsg;
     
-    
-    // Wait for RMSTable to finish
-    m_sharedBuffer->waitForRMSTable();
 
     AkReal32 realRatio = 0.0f;
-    AkReal32 dbCompress = 0.0f;
+    AkReal32 gainDB = 0.0f;
 
     for (AkUInt32 i = 0; i < uNumChannels; ++i)
     {
         AkReal32* AK_RESTRICT pInBuf = (AkReal32* AK_RESTRICT)in_pBuffer->GetChannel(i) + in_ulnOffset;
         AkReal32* AK_RESTRICT pOutBuf = (AkReal32* AK_RESTRICT)out_pBuffer->GetChannel(i) +  out_pBuffer->uValidFrames;
 
-       auto& channelRMSTable = m_sharedBuffer->RMSTable[i];
+        
+        auto& channelRMSTable = m_sharedBuffer->RMSTable[i];
 
         uFramesConsumed = 0;
         uFramesProduced = 0;
@@ -185,9 +194,13 @@ void SidechainCompressorFX::Execute(AkAudioBuffer* in_pBuffer, AkUInt32 in_ulnOf
 
              // Get sharedMovingRMS from RMSTable
 
-            AkReal32 sharedMovingRMS = channelRMSTable[uFramesConsumed];
-
-            // Calculate real Ratio multiplier
+            AkReal32 sharedMovingRMS = m_sharedBuffer->lastbuffer_mRMS[i];
+            if (!m_sharedBuffer->RMSTable.empty())
+            {
+                sharedMovingRMS = channelRMSTable[uFramesConsumed];
+            }
+            AkReal32 excessDB = AK_LINTODB(sharedMovingRMS) - threshold;
+            // Calculate real Ratio
 
             realRatio = ((1 - Percentile) * (m_pParams->RTPC.fMaxRatio - 1)) + 1;
 
@@ -195,13 +208,21 @@ void SidechainCompressorFX::Execute(AkAudioBuffer* in_pBuffer, AkUInt32 in_ulnOf
 
             if (AK_LINTODB(sharedMovingRMS) > threshold)
             {
-                // db to be compressed, a negative float
-                dbCompress =
+               
+                /* db to be compressed, a negative float
+                gainDB =
                     (threshold - AK_LINTODB(sharedMovingRMS))        // difference between threshold and RMS
-                    * (1 - (1 / realRatio));                       // apply ratio
+                    * (1 - (1 / realRatio));                       // apply ratio */
                     
+                // alternate dsp
+                AkReal32 y = (1 / realRatio) * excessDB;  // the new dB above the threshold, a positive float. excessDB is the x variable in the graph
+
+                // db to be compressed, a negative float
+                gainDB = y - excessDB;
+                //
+                
                 // apply gain
-                pOutBuf[uFramesConsumed] = pInBuf[uFramesConsumed] * AK_DBTOLIN(dbCompress);
+                pOutBuf[uFramesConsumed] = pInBuf[uFramesConsumed] * AK_DBTOLIN(gainDB);
             }
             else
             {
@@ -223,10 +244,16 @@ void SidechainCompressorFX::Execute(AkAudioBuffer* in_pBuffer, AkUInt32 in_ulnOf
     else
         out_pBuffer->eState = AK_DataNeeded;
 
+    m_sharedBuffer->numBuffersProcessed.fetch_add(1, std::memory_order_relaxed);
 
 #ifndef AK_OPTIMIZED
     if (m_pContext->CanPostMonitorData())
     {
+        if (m_sharedBuffer->PriorityMap.size() == m_sharedBuffer->objectIDList.size())
+        {
+            errorMsg2 = "Map Complete";
+        }
+
 
         // Monitor Data 1
         std::ostringstream reformat1, reformat2, reformat3;
@@ -237,7 +264,7 @@ void SidechainCompressorFX::Execute(AkAudioBuffer* in_pBuffer, AkUInt32 in_ulnOf
         std::string monitorData1 = sstream1.str();
 
         // Monitor Data 2 
-        sstream2 << m_sharedBuffer->objectIDList.size() << ", " << m_sharedBuffer->PriorityMap.size();
+        sstream2 << m_sharedBuffer->objectIDList.size() << ", " << m_sharedBuffer->numBuffersCalculated << ", " << m_sharedBuffer->numBuffersProcessed;
         std::string monitorData2 = sstream2.str();
 
         // Serialize
@@ -247,10 +274,46 @@ void SidechainCompressorFX::Execute(AkAudioBuffer* in_pBuffer, AkUInt32 in_ulnOf
     }
 
 #endif // !AK_OPTIMIZED
+    
 
 }
 
 AKRESULT SidechainCompressorFX::TimeSkip(AkUInt32 &io_uFrames)
 {
     return AK_DataReady;
+}
+
+void SidechainCompressorFX::doCalculations(AkAudioBuffer* sourceBuffer, AkGlobalCallbackLocation in_pCallback)
+{
+    if (in_pCallback == AkGlobalCallbackLocation_BeginRender)
+    {
+        // m_sharedBuffer->AddToSharedBuffer(sourceBuffer);
+        // m_sharedBuffer->AddToPriorityMap(objectID, priorityRank);
+        m_sharedBuffer->numBuffersCalculated.fetch_add(1, std::memory_order_relaxed);
+    }
+}
+
+
+void SidechainCompressorFX::resetCalcs(AkGlobalCallbackLocation in_pCallback)
+{
+    if (in_pCallback == AkGlobalCallbackLocation_EndRender)
+    {
+        if (m_sharedBuffer->numBuffersProcessed == m_sharedBuffer->objectIDList.size())
+        {
+            // Reset stuff
+        }
+    }
+}
+
+
+void AKSOUNDENGINE_CALL SidechainCompressorFX::MyGlobalCallbackFunction(AK::IAkGlobalPluginContext* in_pContext, AkGlobalCallbackLocation in_eLocation, void* in_pCookie)
+{
+    
+}
+
+
+void SidechainCompressorFX::registerCallbacks()
+{
+    void* myCookie = sourceBuffer;
+    AKRESULT result = AK::SoundEngine::RegisterGlobalCallback(&MyGlobalCallbackFunction, AkGlobalCallbackLocation_BeginRender, myCookie, AkPluginTypeNone, 0, 0);
 }
