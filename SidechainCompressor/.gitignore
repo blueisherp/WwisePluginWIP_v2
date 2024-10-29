@@ -196,9 +196,9 @@ artifacts/
 StyleCopReport.xml
 
 # Visual Studio project files
-*.sln
-*.vcxproj
-*.vcxproj.filters
+(sln)
+(vcxproj)
+(vcxproj.filters)
 
 # Files built by Visual Studio
 *_i.c
