@@ -3,6 +3,6 @@
 
  Files to read:
 
- SoundEnginePlugin > ...FX.cpp & .h
+ SidechainCompressor > SoundEnginePlugin > ...FX.cpp & .h
  
- SoundEnginePlugin > ...SharedBuffer.cpp & h
+ SidechainCompressor > SoundEnginePlugin > ...SharedBuffer.cpp & h
