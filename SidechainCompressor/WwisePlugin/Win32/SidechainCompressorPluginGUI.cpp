@@ -73,6 +73,7 @@ void SidechainCompressorPluginGUI::NotifyMonitorData(AkTimeMs in_iTimeStamp, con
         HWND DlgLabel2 = ::GetDlgItem(m_hwndPropView, IDC_DATA2);
         ::SetWindowTextA(DlgLabel2, serializedData[1].c_str());
 
+
     }
 }
 

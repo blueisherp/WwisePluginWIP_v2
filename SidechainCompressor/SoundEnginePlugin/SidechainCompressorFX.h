@@ -73,31 +73,41 @@ public:
     /// Return AK_DataReady or AK_NoMoreData, depending if there would be audio output or not at that point.
     AKRESULT TimeSkip(AkUInt32 &io_uFrames) override;
 
-    static void AKSOUNDENGINE_CALL MyGlobalCallbackFunction(
+    static void AKSOUNDENGINE_CALL BeginRenderCallback(
         AK::IAkGlobalPluginContext* in_pContext,
         AkGlobalCallbackLocation in_eLocation,
         void* in_pCookie);
+
+    static void AKSOUNDENGINE_CALL EndCallback(
+        AK::IAkGlobalPluginContext* in_pContext,
+        AkGlobalCallbackLocation in_eLocation,
+        void* in_pCookie);
+
+    
 
 private:
     SidechainCompressorFXParams* m_pParams;
     AK::IAkPluginMemAlloc* m_pAllocator;
     AK::IAkEffectPluginContext* m_pContext;
     std::map<AkUniqueID, AkReal32> mapFormat;
+
+
     std::shared_ptr<SidechainCompressorSharedBuffer> m_sharedBuffer = GlobalManager::getGlobalBuffer(mapFormat);
-    AkAudioBuffer* sourceBuffer;
 
-
-    std::string errorMsg = "Default Error Message";
+    std::string errorMsg1 = "Default Error Message 1";
     std::string errorMsg2 = "Default Error Message 2";
     AkUInt32 SampleRate = 0;
     AkReal32 priorityRank = 0.0f;
     AkUniqueID objectID;
+    std::mutex mtx;
 
-    void doCalculations(AkAudioBuffer* sourceBuffer, AkGlobalCallbackLocation in_pCallback);
-    void resetCalcs(AkGlobalCallbackLocation in_pCallback);
+    void resetCalcs();
+    void doCalcs();
+    void doDSP();
+    void monitorData();
 
     void registerCallbacks();
-
+    void unregisterCallbacks();
 
 };
 

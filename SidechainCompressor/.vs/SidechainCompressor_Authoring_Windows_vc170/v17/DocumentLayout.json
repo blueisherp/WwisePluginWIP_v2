@@ -3,10 +3,6 @@
   "WorkspaceRootPath": "C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK_Projects\\SidechainCompressor\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{8D6EB666-0CE8-C77E-7187-051280C00EF2}|SoundEnginePlugin\\SidechainCompressor_Windows_vc170_static.vcxproj|C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK_Projects\\SidechainCompressor\\SoundEnginePlugin\\SidechainCompressorFX.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{8D6EB666-0CE8-C77E-7187-051280C00EF2}|SoundEnginePlugin\\SidechainCompressor_Windows_vc170_static.vcxproj|solutionrelative:SoundEnginePlugin\\SidechainCompressorFX.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{8D6EB666-0CE8-C77E-7187-051280C00EF2}|SoundEnginePlugin\\SidechainCompressor_Windows_vc170_static.vcxproj|C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK_Projects\\SidechainCompressor\\SoundEnginePlugin\\SidechainCompressorFX.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{8D6EB666-0CE8-C77E-7187-051280C00EF2}|SoundEnginePlugin\\SidechainCompressor_Windows_vc170_static.vcxproj|solutionrelative:SoundEnginePlugin\\SidechainCompressorFX.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
@@ -15,11 +11,12 @@
       "RelativeMoniker": "D:0:0:{8D6EB666-0CE8-C77E-7187-051280C00EF2}|SoundEnginePlugin\\SidechainCompressor_Windows_vc170_static.vcxproj|solutionrelative:SoundEnginePlugin\\SidechainCompressorSharedBuffer.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{8D6EB666-0CE8-C77E-7187-051280C00EF2}|SoundEnginePlugin\\SidechainCompressor_Windows_vc170_static.vcxproj|C:\\PROGRAM FILES (X86)\\AUDIOKINETIC\\WWISE 2023.1.2.8444\\SDK\\INCLUDE\\AK\\SOUNDENGINE\\COMMON\\AKTYPES.H||{8B382828-6202-11D1-8870-0000F87579D2}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{8D6EB666-0CE8-C77E-7187-051280C00EF2}|SoundEnginePlugin\\SidechainCompressor_Windows_vc170_static.vcxproj|C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK_Projects\\SidechainCompressor\\SoundEnginePlugin\\SidechainCompressorSharedBuffer.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{8D6EB666-0CE8-C77E-7187-051280C00EF2}|SoundEnginePlugin\\SidechainCompressor_Windows_vc170_static.vcxproj|solutionrelative:SoundEnginePlugin\\SidechainCompressorSharedBuffer.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{8D6EB666-0CE8-C77E-7187-051280C00EF2}|SoundEnginePlugin\\SidechainCompressor_Windows_vc170_static.vcxproj|C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK_Projects\\SidechainCompressor\\SoundEnginePlugin\\SidechainCompressorFX.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{8D6EB666-0CE8-C77E-7187-051280C00EF2}|SoundEnginePlugin\\SidechainCompressor_Windows_vc170_static.vcxproj|solutionrelative:SoundEnginePlugin\\SidechainCompressorFX.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     }
   ],
   "DocumentGroupContainers": [
@@ -29,68 +26,56 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 4,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "AkTypes.h",
-              "DocumentMoniker": "C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK\\include\\AK\\SoundEngine\\Common\\AkTypes.h",
-              "RelativeDocumentMoniker": "..\\..\\SDK\\include\\AK\\SoundEngine\\Common\\AkTypes.h",
-              "ToolTip": "C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK\\include\\AK\\SoundEngine\\Common\\AkTypes.h",
-              "RelativeToolTip": "..\\..\\SDK\\include\\AK\\SoundEngine\\Common\\AkTypes.h",
-              "ViewState": "AQIAAIMEAAAAAAAAAAAAAIcEAAAWAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2024-10-26T04:38:00.197Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 1,
               "Title": "SidechainCompressorSharedBuffer.cpp",
               "DocumentMoniker": "C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK_Projects\\SidechainCompressor\\SoundEnginePlugin\\SidechainCompressorSharedBuffer.cpp",
               "RelativeDocumentMoniker": "SoundEnginePlugin\\SidechainCompressorSharedBuffer.cpp",
               "ToolTip": "C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK_Projects\\SidechainCompressor\\SoundEnginePlugin\\SidechainCompressorSharedBuffer.cpp",
               "RelativeToolTip": "SoundEnginePlugin\\SidechainCompressorSharedBuffer.cpp",
-              "ViewState": "AQIAAAoBAAAAAAAAAADwvxMBAAAJAAAA",
+              "ViewState": "AQIAANYAAAAAAAAAAAAawOcAAAAIAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2024-09-09T23:49:37.367Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 2,
               "Title": "SidechainCompressorSharedBuffer.h",
               "DocumentMoniker": "C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK_Projects\\SidechainCompressor\\SoundEnginePlugin\\SidechainCompressorSharedBuffer.h",
               "RelativeDocumentMoniker": "SoundEnginePlugin\\SidechainCompressorSharedBuffer.h",
               "ToolTip": "C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK_Projects\\SidechainCompressor\\SoundEnginePlugin\\SidechainCompressorSharedBuffer.h",
               "RelativeToolTip": "SoundEnginePlugin\\SidechainCompressorSharedBuffer.h",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAAAAAAHAAAA",
+              "ViewState": "AQIAABAAAAAAAAAAAAAawB8AAAAEAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2024-09-09T23:49:18.403Z"
+              "WhenOpened": "2024-09-09T23:49:18.403Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
               "Title": "SidechainCompressorFX.cpp",
               "DocumentMoniker": "C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK_Projects\\SidechainCompressor\\SoundEnginePlugin\\SidechainCompressorFX.cpp",
               "RelativeDocumentMoniker": "SoundEnginePlugin\\SidechainCompressorFX.cpp",
               "ToolTip": "C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK_Projects\\SidechainCompressor\\SoundEnginePlugin\\SidechainCompressorFX.cpp",
               "RelativeToolTip": "SoundEnginePlugin\\SidechainCompressorFX.cpp",
-              "ViewState": "AQIAAO4AAAAAAAAAAAAmwH4AAAAaAAAA",
+              "ViewState": "AQIAAHcAAAAAAAAAAAAawNQAAAAPAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2024-09-14T10:45:10.718Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 3,
               "Title": "SidechainCompressorFX.h",
               "DocumentMoniker": "C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK_Projects\\SidechainCompressor\\SoundEnginePlugin\\SidechainCompressorFX.h",
               "RelativeDocumentMoniker": "SoundEnginePlugin\\SidechainCompressorFX.h",
               "ToolTip": "C:\\Program Files (x86)\\Audiokinetic\\Wwise 2023.1.2.8444\\SDK_Projects\\SidechainCompressor\\SoundEnginePlugin\\SidechainCompressorFX.h",
               "RelativeToolTip": "SoundEnginePlugin\\SidechainCompressorFX.h",
-              "ViewState": "AQIAAFEAAAAAAAAAAAAAAGIAAAAdAAAA",
+              "ViewState": "AQIAAEgAAAAAAAAAAAAAAFwAAAAAAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
               "WhenOpened": "2024-09-09T23:37:56.899Z",
               "EditorCaption": ""

@@ -50,15 +50,7 @@ SidechainCompressorFX::SidechainCompressorFX()
 
 SidechainCompressorFX::~SidechainCompressorFX()
 {
-    /**/
-    auto& v = m_sharedBuffer->objectIDList;
-    if (std::find(v.begin(), v.end(), objectID) != v.end())
-    {
-        m_sharedBuffer->removeObjectID(objectID);
-    }
-
     m_sharedBuffer->removeFromPriorityMap(objectID);
-    /**/
 }
 
 AKRESULT SidechainCompressorFX::Init(AK::IAkPluginMemAlloc* in_pAllocator, AK::IAkEffectPluginContext* in_pContext, AK::IAkPluginParam* in_pParams, AkAudioFormat& in_rFormat)
@@ -70,14 +62,16 @@ AKRESULT SidechainCompressorFX::Init(AK::IAkPluginMemAlloc* in_pAllocator, AK::I
     SampleRate = in_rFormat.uSampleRate;
     priorityRank = m_pParams->RTPC.fPriorityRank;
 
-    
+    /**/
+    registerCallbacks();
+
     // Register object to sharedBuffer's list of objects
     if (in_pContext != nullptr)
     {
         objectID = in_pContext->GetAudioNodeID();
     }
-    m_sharedBuffer->registerObjectID(objectID);
     m_sharedBuffer->AddToPriorityMap(objectID, priorityRank);
+    /**/
     
 
     return AK_Success;
@@ -88,13 +82,15 @@ AKRESULT SidechainCompressorFX::Init(AK::IAkPluginMemAlloc* in_pAllocator, AK::I
 AKRESULT SidechainCompressorFX::Term(AK::IAkPluginMemAlloc* in_pAllocator)
 {
     // Unregister from list of objects
-    auto& v = m_sharedBuffer->objectIDList;
-    if (std::find(v.begin(), v.end(), objectID) != v.end())
-    {
-        m_sharedBuffer->removeObjectID(objectID);
-    }
-
+    
     m_sharedBuffer->removeFromPriorityMap(objectID);
+
+    if (m_sharedBuffer->PriorityMap.empty())
+    {
+        unregisterCallbacks();
+    }
+    
+    
 
     AK_PLUGIN_DELETE(in_pAllocator, this);
     return AK_Success;
@@ -118,121 +114,95 @@ AKRESULT SidechainCompressorFX::GetPluginInfo(AkPluginInfo& out_rPluginInfo)
 
 void SidechainCompressorFX::Execute(AkAudioBuffer* in_pBuffer, AkUInt32 in_ulnOffset, AkAudioBuffer* out_pBuffer)
 {
+   
     const AkUInt32 uNumChannels = in_pBuffer->NumChannels();
-
-    AkUInt16 uFramesConsumed;
-    AkUInt16 uFramesProduced;
-
-    const AkUInt32 frames10ms = SampleRate / 100;
+    AkUInt32 uFramesConsumed;
+    AkUInt32 uFramesProduced;
     AkReal32 threshold = m_pParams->RTPC.fThreshold;
-
-
-    // Reset Atomic counters
-    if (m_sharedBuffer->numBuffersProcessed == m_sharedBuffer->objectIDList.size())
-    {
-        m_sharedBuffer->numBuffersProcessed.store(0, std::memory_order_relaxed);
-        m_sharedBuffer->numBuffersCalculated.store(0, std::memory_order_relaxed);
-    }
-
-    // AkGlobalCallbackLocation_BeginRender;
-
-
-    // SharedBuffer and RMSTable need to be reset
-    if (m_sharedBuffer->isSharedBufferReady || 
-        m_sharedBuffer->sharedBuffer.empty() || 
-        m_sharedBuffer->numBuffersAdded == m_sharedBuffer->numBuffersProcessed)
-    {
-        m_sharedBuffer->resetSharedBuffer(in_pBuffer);
-    }
-    
-    
-    if (m_sharedBuffer->isRMSTableReady ||
-        m_sharedBuffer->numBuffersProcessed == m_sharedBuffer->objectIDList.size() || 
-        m_sharedBuffer->RMSTable.empty())
-    {
-        m_sharedBuffer->resetRMSTable();
-    }
-    
-    // Add buffer to global shared buffer
-    m_sharedBuffer->AddToSharedBuffer(in_pBuffer);
-    
-    // Add/update object ID and Priority Rank to PriorityMap
-    m_sharedBuffer->AddToPriorityMap(objectID, priorityRank);
-
-    // Buffer finished Calculating
-    m_sharedBuffer->numBuffersCalculated.fetch_add(1, std::memory_order_relaxed);
-
-
-
-    // Populate RMStable
-    if (m_sharedBuffer->RMSTable.empty())
-    {
-        m_sharedBuffer->populateRMSTable(frames10ms);
-    }
-
-    // Get Percentile from Priority Map
-
     AkReal32 Percentile = m_sharedBuffer->getPercentile(objectID);
-    
+    AkReal32 realRatio = (Percentile * (m_pParams->RTPC.fMaxRatio - 1)) + 1;
+    AkReal32 gainDB[2] = { 0.0f, 0.0f };
+    AkReal32 knee = 1.0f;
+    AkReal32 myRMS[2] = { 0.0f, 0.0f };
+    auto& oldRMS = m_sharedBuffer->lastbuffer_mRMS;
+    auto& newRMS = m_sharedBuffer->newbuffer_mRMS;
+    AkReal32 rmsDiff[2] = { m_sharedBuffer->diff_mRMS[0], m_sharedBuffer->diff_mRMS[1] };
 
-    AkReal32 realRatio = 0.0f;
-    AkReal32 gainDB = 0.0f;
+
+    m_sharedBuffer->updatePriorityMap(objectID, priorityRank);
+
+    m_sharedBuffer->resetSharedBuffer();
+    
+    m_sharedBuffer->resizeSharedBuffer(in_pBuffer);
+
+    m_sharedBuffer->AddToSharedBuffer(in_pBuffer);
+
+    m_sharedBuffer->numBuffersCalculated.fetch_add(1, std::memory_order_relaxed);
 
     for (AkUInt32 i = 0; i < uNumChannels; ++i)
     {
         AkReal32* AK_RESTRICT pInBuf = (AkReal32* AK_RESTRICT)in_pBuffer->GetChannel(i) + in_ulnOffset;
         AkReal32* AK_RESTRICT pOutBuf = (AkReal32* AK_RESTRICT)out_pBuffer->GetChannel(i) +  out_pBuffer->uValidFrames;
-
         
-        auto& channelRMSTable = m_sharedBuffer->RMSTable[i];
-
         uFramesConsumed = 0;
         uFramesProduced = 0;
+        auto& frame = uFramesConsumed;
+        const auto& maxFrames = in_pBuffer->uValidFrames;
         while (uFramesConsumed < in_pBuffer->uValidFrames
             && uFramesProduced < out_pBuffer->MaxFrames())
         {
+            // current RMS is somewhere between oldRMS and newRMS, based on the % of progress through the total amount of frames in the buffer
+            myRMS[i] = oldRMS[i] + ((frame / maxFrames) * (newRMS[i] - oldRMS[i]));
 
-             // Get sharedMovingRMS from RMSTable
-
-            AkReal32 sharedMovingRMS = m_sharedBuffer->lastbuffer_mRMS[i];
-            if (!m_sharedBuffer->RMSTable.empty())
-            {
-                sharedMovingRMS = channelRMSTable[uFramesConsumed];
-            }
-            AkReal32 excessDB = AK_LINTODB(sharedMovingRMS) - threshold;
-            // Calculate real Ratio
-
-            realRatio = ((1 - Percentile) * (m_pParams->RTPC.fMaxRatio - 1)) + 1;
-
-            // Do compression DSP
-
-            if (AK_LINTODB(sharedMovingRMS) > threshold)
-            {
-               
-                /* db to be compressed, a negative float
-                gainDB =
-                    (threshold - AK_LINTODB(sharedMovingRMS))        // difference between threshold and RMS
-                    * (1 - (1 / realRatio));                       // apply ratio */
-                    
-                // alternate dsp
-                AkReal32 y = (1 / realRatio) * excessDB;  // the new dB above the threshold, a positive float. excessDB is the x variable in the graph
-
-                // db to be compressed, a negative float
-                gainDB = y - excessDB;
-                //
+            
+            AkReal32 mySlope = newRMS[i] - oldRMS[i];
                 
-                // apply gain
-                pOutBuf[uFramesConsumed] = pInBuf[uFramesConsumed] * AK_DBTOLIN(gainDB);
-            }
-            else
+            // if difference is negligible, rmsDiff can match it
+            if (abs(mySlope - rmsDiff[i]) < 0.0001){
+                rmsDiff[i] = mySlope;}
+            else{
+                //shift rmsSlope toward the next RMS, at 50% strength
+                rmsDiff[i] += (mySlope - rmsDiff[i]) * (0.5);}
+
+            //update current RMS to follow rmsDiff
+            myRMS[i] += (rmsDiff[i]/maxFrames);
+
+
+            AkReal32 x = AK_LINTODB(myRMS[i]);
+            AkReal32 y = x;
+
+            // TODO: dsp in DB
+            if (x > threshold + (knee / 2))
             {
-                *pOutBuf++ = *pInBuf++;
+                y = ((x - threshold) / realRatio) + threshold;
+            }
+            else if (x > threshold - (knee / 2))
+            {
+                AkReal32 m = ((1 / realRatio) - 1) / (2 * knee);
+                y = x + (m * powf(x - (threshold - (knee / 2)), 2));
             }
             
+            gainDB[i] = y - x;
+
+            pOutBuf[frame] = pInBuf[frame] * AK_DBTOLIN(gainDB[i]);
+
+            // make output same as input, effectively y = x
+            //*pOutBuf++ = *pInBuf++;
+
+            std::ostringstream reformat1, reformat2;
+            if (i == 0){
+                reformat1 << std::fixed << std::setprecision(2) << gainDB[i];
+                errorMsg1 = reformat1.str();}
+            else if (i == 1){
+                reformat2 << std::fixed << std::setprecision(2) << gainDB[i];
+                errorMsg2 = reformat2.str();}
+
+ 
             ++uFramesConsumed;
             ++uFramesProduced;
         }
     }
+
 
     in_pBuffer->uValidFrames -= uFramesConsumed;
     out_pBuffer->uValidFrames += uFramesProduced;
@@ -244,38 +214,16 @@ void SidechainCompressorFX::Execute(AkAudioBuffer* in_pBuffer, AkUInt32 in_ulnOf
     else
         out_pBuffer->eState = AK_DataNeeded;
 
-    m_sharedBuffer->numBuffersProcessed.fetch_add(1, std::memory_order_relaxed);
-
-#ifndef AK_OPTIMIZED
-    if (m_pContext->CanPostMonitorData())
+    // do RMS table
+    if (m_sharedBuffer->numBuffersCalculated >= m_sharedBuffer->PriorityMap.size())
     {
-        if (m_sharedBuffer->PriorityMap.size() == m_sharedBuffer->objectIDList.size())
-        {
-            errorMsg2 = "Map Complete";
-        }
-
-
-        // Monitor Data 1
-        std::ostringstream reformat1, reformat2, reformat3;
-        reformat1 << std::fixed << std::setprecision(2) << m_sharedBuffer->lastbuffer_mRMS[0];
-        reformat2 << std::fixed << std::setprecision(2) << m_sharedBuffer->lastbuffer_mRMS[1];
-        std::stringstream sstream1, sstream2;
-        sstream1 << reformat1.str() << ", " << reformat2.str();
-        std::string monitorData1 = sstream1.str();
-
-        // Monitor Data 2 
-        sstream2 << m_sharedBuffer->objectIDList.size() << ", " << m_sharedBuffer->numBuffersCalculated << ", " << m_sharedBuffer->numBuffersProcessed;
-        std::string monitorData2 = sstream2.str();
-
-        // Serialize
-        std::string monitorData[2] = { monitorData1, monitorData2};
-
-        m_pContext->PostMonitorData((void*)monitorData, sizeof(monitorData));
+        m_sharedBuffer->diff_mRMS[0] = rmsDiff[0];
+        m_sharedBuffer->diff_mRMS[1] = rmsDiff[1];
+        m_sharedBuffer->calculatedmRMS(SampleRate / 100);
     }
 
-#endif // !AK_OPTIMIZED
-    
-
+    // Post Monitor Data
+    monitorData();
 }
 
 AKRESULT SidechainCompressorFX::TimeSkip(AkUInt32 &io_uFrames)
@@ -283,37 +231,139 @@ AKRESULT SidechainCompressorFX::TimeSkip(AkUInt32 &io_uFrames)
     return AK_DataReady;
 }
 
-void SidechainCompressorFX::doCalculations(AkAudioBuffer* sourceBuffer, AkGlobalCallbackLocation in_pCallback)
+
+void SidechainCompressorFX::resetCalcs()
 {
-    if (in_pCallback == AkGlobalCallbackLocation_BeginRender)
-    {
-        // m_sharedBuffer->AddToSharedBuffer(sourceBuffer);
-        // m_sharedBuffer->AddToPriorityMap(objectID, priorityRank);
-        m_sharedBuffer->numBuffersCalculated.fetch_add(1, std::memory_order_relaxed);
-    }
 }
 
-
-void SidechainCompressorFX::resetCalcs(AkGlobalCallbackLocation in_pCallback)
-{
-    if (in_pCallback == AkGlobalCallbackLocation_EndRender)
-    {
-        if (m_sharedBuffer->numBuffersProcessed == m_sharedBuffer->objectIDList.size())
-        {
-            // Reset stuff
-        }
-    }
-}
-
-
-void AKSOUNDENGINE_CALL SidechainCompressorFX::MyGlobalCallbackFunction(AK::IAkGlobalPluginContext* in_pContext, AkGlobalCallbackLocation in_eLocation, void* in_pCookie)
+void SidechainCompressorFX::doCalcs()
 {
     
+}
+
+void SidechainCompressorFX::doDSP()
+{
+    std::lock_guard<std::mutex> lock(mtx);
+    /*
+    const AkUInt32 uNumChannels = sourceBuffer->NumChannels();
+    AkUInt16 uFramesProcessed;
+    AkReal32 threshold = m_pParams->RTPC.fThreshold;
+    AkReal32 Percentile = m_sharedBuffer->getPercentile(objectID);
+    AkReal32 realRatio = 0.0f;
+    AkReal32 gainDB = 0.0f;
+
+    for (AkUInt32 i = 0; i < uNumChannels; ++i)
+    {
+        AkReal32* pBuf = (AkReal32 * )sourceBuffer->GetChannel(i);
+        auto& channelRMSTable = m_sharedBuffer->RMSTable[i];
+
+        uFramesProcessed = 0;
+        while (uFramesProcessed < sourceBuffer->uValidFrames)
+        {
+
+            // Get sharedMovingRMS from RMSTable
+            AkReal32 sharedMovingRMS = m_sharedBuffer->lastbuffer_mRMS[i];
+            if (!m_sharedBuffer->RMSTable.empty())
+            {
+                sharedMovingRMS = channelRMSTable[uFramesProcessed];
+            }
+            AkReal32 excessDB = AK_LINTODB(sharedMovingRMS) - threshold;
+
+            // Calculate real Ratio
+
+            realRatio = ((1 - Percentile) * (m_pParams->RTPC.fMaxRatio - 1)) + 1;
+
+            // Do compression DSP
+
+            if (AK_LINTODB(sharedMovingRMS) > threshold)
+            {
+                
+
+                AkReal32 y = (1 / realRatio) * excessDB;  // the new dB above the threshold, a positive float. excessDB is the x variable in the graph
+
+                // db to be compressed, a negative float
+                gainDB = y - excessDB;
+
+                // apply gain
+                pBuf[uFramesProcessed] = pBuf[uFramesProcessed] * AK_DBTOLIN(gainDB);
+                
+                pBuf[uFramesProcessed] *= 0.5f;
+            }
+            
+            ++uFramesProcessed;
+        }
+
+    }
+    */
+    
+}
+
+void SidechainCompressorFX::monitorData()
+{
+#ifndef AK_OPTIMIZED
+
+    
+    if (m_pContext->CanPostMonitorData())
+    {
+
+        // Monitor Data 1
+        std::ostringstream reformat1, reformat2, reformat3, reformat4;
+        reformat1 << std::fixed << std::setprecision(2) << AK_LINTODB(m_sharedBuffer->lastbuffer_mRMS[0]);
+        reformat2 << std::fixed << std::setprecision(2) << AK_LINTODB(m_sharedBuffer->lastbuffer_mRMS[1]);
+        std::stringstream sstream1, sstream2;
+        sstream1 << reformat1.str() << ", " << reformat2.str();
+
+        std::string monitorData1 = sstream1.str();
+
+        // Monitor Data 2 
+        AkUInt32 data1 = 0;
+        AkUInt32 data2 = 0;
+        if (!m_sharedBuffer->sharedBuffer.empty())
+        {
+            reformat3 << std::fixed << std::setprecision(3) << m_sharedBuffer->diff_mRMS[0] * 100;
+            reformat4 << std::fixed << std::setprecision(3) << m_sharedBuffer->diff_mRMS[1] * 100;
+        }
+        sstream2 << errorMsg1 << ", " << errorMsg2;
+        
+        std::string monitorData2 = sstream2.str();
+        
+        // Serialize
+        std::string monitorData[2] = { monitorData1, monitorData2 };
+
+        m_pContext->PostMonitorData((void*)monitorData, sizeof(monitorData));
+
+    }
+    
+
+#endif // !AK_OPTIMIZED
+
+    
+
+}
+
+void AKSOUNDENGINE_CALL SidechainCompressorFX::BeginRenderCallback(AK::IAkGlobalPluginContext* in_pContext, AkGlobalCallbackLocation in_eLocation, void* in_pCookie)
+{
+    SidechainCompressorFX* me = (SidechainCompressorFX*)in_pCookie;
+}
+
+void AKSOUNDENGINE_CALL SidechainCompressorFX::EndCallback(AK::IAkGlobalPluginContext* in_pContext, AkGlobalCallbackLocation in_eLocation, void* in_pCookie)
+{
+    
+    SidechainCompressorFX* me = (SidechainCompressorFX*)in_pCookie;
+
 }
 
 
 void SidechainCompressorFX::registerCallbacks()
 {
-    void* myCookie = sourceBuffer;
-    AKRESULT result = AK::SoundEngine::RegisterGlobalCallback(&MyGlobalCallbackFunction, AkGlobalCallbackLocation_BeginRender, myCookie, AkPluginTypeNone, 0, 0);
+    m_pContext->GlobalContext()->RegisterGlobalCallback(AkPluginTypeEffect, 64, 25358, BeginRenderCallback, AkGlobalCallbackLocation_BeginRender, this);
+    m_pContext->GlobalContext()->RegisterGlobalCallback(AkPluginTypeEffect, 64, 25358, EndCallback, AkGlobalCallbackLocation_End, this);
+    
+}
+
+void SidechainCompressorFX::unregisterCallbacks()
+{
+    m_pContext->GlobalContext()->UnregisterGlobalCallback(BeginRenderCallback, AkGlobalCallbackLocation_BeginRender);
+    m_pContext->GlobalContext()->UnregisterGlobalCallback(EndCallback, AkGlobalCallbackLocation_EndRender);
+    
 }
